@@ -7,9 +7,10 @@
  *  ・「/ポイント 名前:○○」… 誰でも使えます。ポイント残高を確認します。
  *  ・「/ポイント追加 名前:○○ pt数:10 カテゴリ:TikTok分」… 管理者専用。台帳に
  *    手動でポイントを加算します。カテゴリは「TikTok分」「FC更新」
- *    「ほしいものリスト」「その他投げ銭」の4択から選びます（YouTube Data APIで
- *    検知できない加算をすべてカバーします）。メモ欄に詳しい理由を書いておくと
- *    「ログ」シートに残るので後から見返せます。
+ *    「ほしいものリスト」「その他投げ銭」「ボーナス」の5択から選びます
+ *    （YouTube Data APIで検知できない加算をすべてカバーします。「ボーナス」は
+ *    特定の理由に当てはまらない、つむぎさん判断のおまけpt用です）。メモ欄に
+ *    詳しい理由を書いておくと「ログ」シートに残るので後から見返せます。
  *  ・「/ポイント消費 名前:○○ pt数:10」… 管理者専用。特典と引き換えに
  *    ポイントを消費（残高を減らす）します。残高が足りない場合は失敗します。
  *  いずれもGoogleスプレッドシートの台帳（Apps Scriptのウェブアプリ経由）と
@@ -110,7 +111,8 @@ const commands = [
           { name: 'TikTok分（投げ銭・ギフト）', value: 'tiktok' },
           { name: 'FC更新（ファンクラブ更新）', value: 'fc' },
           { name: 'ほしいものリスト（Amazon等）', value: 'wishlist' },
-          { name: 'その他投げ銭（TikTok・YouTube以外）', value: 'other' }
+          { name: 'その他投げ銭（TikTok・YouTube以外）', value: 'other' },
+          { name: 'ボーナス（つむぎ判断のおまけpt）', value: 'bonus' }
         )
     )
     .addStringOption((option) =>
@@ -152,6 +154,7 @@ const CATEGORY_LABELS = {
   fc: 'FC更新',
   wishlist: 'ほしいものリスト',
   other: 'その他投げ銭',
+  bonus: 'ボーナス',
 };
 
 async function registerCommands() {
@@ -268,6 +271,7 @@ client.on('interactionCreate', async (interaction) => {
         { name: 'FC更新pt', value: String(data.fc), inline: true },
         { name: 'ほしいものリストpt', value: String(data.wishlist), inline: true },
         { name: 'その他投げ銭pt', value: String(data.other), inline: true },
+        { name: 'ボーナスpt', value: String(data.bonus), inline: true },
         { name: '使用済みpt', value: String(data.used), inline: true },
         { name: '残高', value: `**${data.balance} pt**`, inline: false }
       );

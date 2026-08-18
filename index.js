@@ -7,7 +7,7 @@
  *  ・「/ポイント 名前:○○」… 誰でも使えます。ポイント残高を確認します。
  *  ・「/ポイント追加 名前:○○ pt数:10 カテゴリ:TikTok分」… 管理者専用。台帳に
  *    手動でポイントを加算します。カテゴリは「TikTok分」「FC更新」
- *    「ほしいものリスト・その他投げ銭」の3択から選びます（YouTube Data APIで
+ *    「ほしいものリスト」「その他投げ銭」の4択から選びます（YouTube Data APIで
  *    検知できない加算をすべてカバーします）。メモ欄に詳しい理由を書いておくと
  *    「ログ」シートに残るので後から見返せます。
  *  ・「/ポイント消費 名前:○○ pt数:10」… 管理者専用。特典と引き換えに
@@ -109,7 +109,8 @@ const commands = [
         .addChoices(
           { name: 'TikTok分（投げ銭・ギフト）', value: 'tiktok' },
           { name: 'FC更新（ファンクラブ更新）', value: 'fc' },
-          { name: 'ほしいものリスト・その他投げ銭', value: 'other' }
+          { name: 'ほしいものリスト（Amazon等）', value: 'wishlist' },
+          { name: 'その他投げ銭（TikTok・YouTube以外）', value: 'other' }
         )
     )
     .addStringOption((option) =>
@@ -149,7 +150,8 @@ async function postToSheet(action, name, points, note, category) {
 const CATEGORY_LABELS = {
   tiktok: 'TikTok分',
   fc: 'FC更新',
-  other: 'ほしいものリスト・その他投げ銭',
+  wishlist: 'ほしいものリスト',
+  other: 'その他投げ銭',
 };
 
 async function registerCommands() {
@@ -264,7 +266,8 @@ client.on('interactionCreate', async (interaction) => {
         { name: 'ギフト・メンバーpt（YouTube）', value: String(data.gift), inline: true },
         { name: 'TikTok分pt', value: String(data.tiktok), inline: true },
         { name: 'FC更新pt', value: String(data.fc), inline: true },
-        { name: 'ほしいものリスト・その他投げ銭pt', value: String(data.other), inline: true },
+        { name: 'ほしいものリストpt', value: String(data.wishlist), inline: true },
+        { name: 'その他投げ銭pt', value: String(data.other), inline: true },
         { name: '使用済みpt', value: String(data.used), inline: true },
         { name: '残高', value: `**${data.balance} pt**`, inline: false }
       );

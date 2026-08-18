@@ -273,6 +273,7 @@ client.on('interactionCreate', async (interaction) => {
         { name: 'その他投げ銭pt', value: String(data.other), inline: true },
         { name: 'ボーナスpt', value: String(data.bonus), inline: true },
         { name: '使用済みpt', value: String(data.used), inline: true },
+        { name: '累計pt（使用分を含む合計）', value: String(data.total), inline: false },
         { name: '残高', value: `**${data.balance} pt**`, inline: false }
       );
 
@@ -283,4 +284,5 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
+client.login(TOKEN);
 client.login(TOKEN);

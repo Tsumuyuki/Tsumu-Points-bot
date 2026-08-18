@@ -5,8 +5,11 @@
  *
  * 【このボットがやること】
  *  ・「/ポイント 名前:○○」… 誰でも使えます。ポイント残高を確認します。
- *  ・「/ポイント追加 名前:○○ pt数:10」… 管理者専用。台帳に手動でポイントを
- *    加算します（TikTok分の投げ銭などを記録するときに使います）。
+ *  ・「/ポイント追加 名前:○○ pt数:10 カテゴリ:TikTok分」… 管理者専用。台帳に
+ *    手動でポイントを加算します。カテゴリは「TikTok分」「FC更新」
+ *    「ほしいものリスト・その他投げ銭」の3択から選びます（YouTube Data APIで
+ *    検知できない加算をすべてカバーします）。メモ欄に詳しい理由を書いておくと
+ *    「ログ」シートに残るので後から見返せます。
  *  ・「/ポイント消費 名前:○○ pt数:10」… 管理者専用。特典と引き換えに
  *    ポイントを消費（残高を減らす）します。残高が足りない場合は失敗します。
  *  いずれもGoogleスプレッドシートの台帳（Apps Scriptのウェブアプリ経由）と
@@ -90,13 +93,24 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName('ポイント追加')
-    .setDescription('【管理者用】台帳にポイントを手動で加算します（TikTok分の記録などに使います）')
+    .setDescription('【管理者用】台帳にポイントを手動で加算します（TikTok/FC更新/ほしいものリスト等の記録に使います）')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption((option) =>
       option.setName('名前').setDescription('対象の表示名').setRequired(true)
     )
     .addIntegerOption((option) =>
       option.setName('pt数').setDescription('加算するポイント数').setRequired(true).setMinValue(1)
+    )
+    .addStringOption((option) =>
+      option
+        .setName('カテゴリ')
+        .setDescription('どの種類の加算か選んでください')
+        .setRequired(true)
+        .addChoices(
+          { name: 'TikTok分（投げ銭・ギフト）', value: 'tiktok' },
+          { name: 'FC更新（ファンクラブ更新）', value: 'fc' },
+          { name: 'ほしいものリスト・その他投げ銭', value: 'other' }
+        )
     )
     .addStringOption((option) =>
       option.setName('メモ').setDescription('記録用のメモ（任意）').setRequired(false)
@@ -117,11 +131,12 @@ const commands = [
 ].map((cmd) => cmd.toJSON());
 
 // 台帳への書き込み（追加・消費）を、Apps Scriptのウェブアプリに依頼する共通処理
-async function postToSheet(action, name, points, note) {
+// category は action が 'add' のときだけ使う（'use' のときは省略してOK）
+async function postToSheet(action, name, points, note, category) {
   const res = await fetch(SHEET_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Apps Script側の都合でtext/plainにしています
-    body: JSON.stringify({ secret: API_SECRET, action, name, points, note }),
+    body: JSON.stringify({ secret: API_SECRET, action, name, points, note, category }),
   });
 
   if (!res.ok) {
@@ -129,6 +144,13 @@ async function postToSheet(action, name, points, note) {
   }
   return res.json();
 }
+
+// カテゴリのDiscord側の選択肢キー → 画面表示用ラベル
+const CATEGORY_LABELS = {
+  tiktok: 'TikTok分',
+  fc: 'FC更新',
+  other: 'ほしいものリスト・その他投げ銭',
+};
 
 async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -164,11 +186,12 @@ client.on('interactionCreate', async (interaction) => {
     const name = interaction.options.getString('名前');
     const points = interaction.options.getInteger('pt数');
     const note = interaction.options.getString('メモ') || '';
+    const category = action === 'add' ? interaction.options.getString('カテゴリ') : undefined;
 
     await interaction.deferReply();
 
     try {
-      const data = await postToSheet(action, name, points, note);
+      const data = await postToSheet(action, name, points, note, category);
 
       if (data.status === 'error') {
         console.error('スプレッドシートAPIがエラーを返しました:', data.message);
@@ -183,7 +206,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
-      const actionLabel = action === 'add' ? '加算' : '消費';
+      const actionLabel = action === 'add' ? `加算（${CATEGORY_LABELS[category] || category}）` : '消費';
       await interaction.editReply(
         `「${data.name}」さんに ${points}pt を${actionLabel}しました。${note ? `（メモ: ${note}）` : ''}\n現在の残高: **${data.balance}pt**`
       );
@@ -240,6 +263,8 @@ client.on('interactionCreate', async (interaction) => {
         { name: '来場pt（YouTube）', value: String(data.attend), inline: true },
         { name: 'ギフト・メンバーpt（YouTube）', value: String(data.gift), inline: true },
         { name: 'TikTok分pt', value: String(data.tiktok), inline: true },
+        { name: 'FC更新pt', value: String(data.fc), inline: true },
+        { name: 'ほしいものリスト・その他投げ銭pt', value: String(data.other), inline: true },
         { name: '使用済みpt', value: String(data.used), inline: true },
         { name: '残高', value: `**${data.balance} pt**`, inline: false }
       );
@@ -251,5 +276,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(TOKEN);
 client.login(TOKEN);

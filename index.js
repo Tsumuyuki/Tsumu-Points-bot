@@ -194,6 +194,41 @@ process.on('unhandledRejection', (reason) => {
   console.error('未処理のPromiseエラーが発生しました（プロセスは継続します）:', reason);
 });
 
+// 【重要】上記のエラーハンドラで「プロセスを落とさない」ようにした副作用で、
+// Discordとの接続（Gateway）そのものが切れてしまった場合に、プロセスは
+// 生きたまま・Discord上ではオフライン（灰色）表示のまま固まってしまう
+// 不具合がありました（Renderのヘルスチェック用サーバーは別で動き続けるため、
+// Render側からは「正常」に見えてしまいます）。
+// これを防ぐため、定期的に接続状態を確認し、一定時間つながっていなければ
+// プロセスを終了させます。Renderは自動的にプロセスを再起動してくれるので、
+// 結果的に接続が復旧します。
+const READY_CHECK_INTERVAL_MS = 30 * 1000; // 30秒おきにチェック
+const READY_CHECK_FAILURE_LIMIT = 4; // 4回連続（=2分間）つながっていなかったら再起動
+let notReadyCount = 0;
+
+setInterval(() => {
+  if (client.isReady()) {
+    notReadyCount = 0;
+    return;
+  }
+  notReadyCount++;
+  console.error(`Discordとの接続が確認できません（${notReadyCount}回目）`);
+  if (notReadyCount >= READY_CHECK_FAILURE_LIMIT) {
+    console.error('Discordとの接続が長時間切れたままのため、プロセスを再起動します。');
+    process.exit(1); // Renderが自動的にプロセスを再起動してくれます
+  }
+}, READY_CHECK_INTERVAL_MS);
+
+client.on('shardDisconnect', (event, id) => {
+  console.error(`Discordとの接続が切断されました（shard ${id}）:`, event?.code);
+});
+client.on('shardReconnecting', (id) => {
+  console.log(`Discordへの再接続を試みています（shard ${id}）`);
+});
+client.on('shardResume', (id) => {
+  console.log(`Discordとの接続が復旧しました（shard ${id}）`);
+});
+
 client.once('ready', async () => {
   console.log(`ログイン完了: ${client.user.tag} として動作中です`);
   await registerCommands();

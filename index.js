@@ -178,6 +178,22 @@ async function registerCommands() {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+// 【重要】discord.jsのClientで発生した予期しないエラーをここで拾わないと、
+// Node.jsの仕様で「誰も聞いていないerrorイベント」はプロセスそのものを
+// クラッシュさせてしまいます（Renderの無料プランがスリープから復帰する際の
+// 遅延で、Discordのinteractionトークンが期限切れになる「Unknown interaction」
+// エラーが発生し、Bot全体が落ちてしまう不具合がありました）。ここでログに
+// 残すだけにして、プロセスは落とさないようにしています。
+client.on('error', (err) => {
+  console.error('Discordクライアントでエラーが発生しました（プロセスは継続します）:', err);
+});
+
+// interactionCreateのハンドラ以外で起きた予期しないエラーの保険です。
+// これがないと、Node.jsのバージョンによってはプロセスごと落ちることがあります。
+process.on('unhandledRejection', (reason) => {
+  console.error('未処理のPromiseエラーが発生しました（プロセスは継続します）:', reason);
+});
+
 client.once('ready', async () => {
   console.log(`ログイン完了: ${client.user.tag} として動作中です`);
   await registerCommands();
@@ -193,7 +209,18 @@ client.on('interactionCreate', async (interaction) => {
     const note = interaction.options.getString('メモ') || '';
     const category = action === 'add' ? interaction.options.getString('カテゴリ') : undefined;
 
-    await interaction.deferReply();
+    // deferReplyは単独でtry/catchします。ここが失敗するのは、Discordの
+    // interactionトークンがすでに期限切れになっているとき（Renderの無料
+    // プランがスリープから復帰する直前・直後にコマンドを実行した場合など）で、
+    // その場合はeditReplyを呼んでも同じ理由で必ず失敗するため、これ以上は
+    // 何もせず処理を打ち切ります（＝ユーザーには「応答なし」のまま見えますが、
+    // Bot自体はクラッシュせず、次のコマンドは正常に受け付けられます）。
+    try {
+      await interaction.deferReply();
+    } catch (err) {
+      console.error('deferReplyに失敗しました（interactionが期限切れの可能性）:', err);
+      return;
+    }
 
     try {
       const data = await postToSheet(action, name, points, note, category);
@@ -225,7 +252,13 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.commandName !== 'ポイント') return;
 
   const name = interaction.options.getString('名前');
-  await interaction.deferReply();
+
+  try {
+    await interaction.deferReply();
+  } catch (err) {
+    console.error('deferReplyに失敗しました（interactionが期限切れの可能性）:', err);
+    return;
+  }
 
   try {
     const url = `${SHEET_API_URL}?name=${encodeURIComponent(name)}`;
@@ -284,5 +317,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(TOKEN);
 client.login(TOKEN);

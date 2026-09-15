@@ -188,6 +188,19 @@ client.on('error', (err) => {
   console.error('Discordクライアントでエラーが発生しました（プロセスは継続します）:', err);
 });
 
+// 接続（WebSocket）そのものでエラーが起きた場合の詳細ログです。
+// 'error'イベントだけでは拾えない、接続段階のエラーを確認するために追加しています。
+client.on('shardError', (error, shardId) => {
+  console.error(`Discord接続（shard ${shardId}）でエラーが発生しました:`, error);
+});
+
+// 【一時的な調査用】接続が全く確立できない原因を特定するため、Discord.jsの
+// 内部的な動作ログ（デバッグログ）をすべて出力するようにしています。
+// 原因が分かり次第、この行は削除して問題ありません。
+client.on('debug', (info) => {
+  console.log('[Discord debug]', info);
+});
+
 // interactionCreateのハンドラ以外で起きた予期しないエラーの保険です。
 // これがないと、Node.jsのバージョンによってはプロセスごと落ちることがあります。
 process.on('unhandledRejection', (reason) => {

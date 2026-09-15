@@ -352,4 +352,11 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(TOKEN);
+client.login(TOKEN).catch((err) => {
+  console.error(
+    'Discordへのログインに失敗しました。DISCORD_TOKENがDiscord Developer Portalの' +
+      '最新のトークンと一致しているか（再発行していないか）、Renderの「Environment」タブの' +
+      '値をご確認ください:',
+    err
+  );
+});

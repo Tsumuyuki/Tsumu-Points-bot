@@ -349,7 +349,7 @@ client.on('interactionCreate', async (interaction) => {
         { name: '来場pt（YouTube）', value: String(data.attend), inline: true },
         { name: 'ギフト・メンバーpt（YouTube）', value: String(data.gift), inline: true },
         { name: 'TikTok分pt', value: String(data.tiktok), inline: true },
-        { name: 'イベント用TikTok分pt（開催中のみ加算）', value: String(data.eventTiktok ?? 0), inline: true },
+        { name: 'TikTokイベント分pt', value: String(data.eventTiktok ?? 0), inline: true },
         { name: 'FC更新pt', value: String(data.fc), inline: true },
         { name: 'ほしいものリストpt', value: String(data.wishlist), inline: true },
         { name: 'その他投げ銭pt', value: String(data.other), inline: true },
